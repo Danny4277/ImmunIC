@@ -1,15 +1,35 @@
-FROM        ubuntu:20.04 AS base
+FROM --platform=linux/amd64 ubuntu:20.04 AS base
 
-WORKDIR     /tmp/workdir
+WORKDIR /app
 
-RUN     apt-get -yqq update && \
-        apt-get install -yq --no-install-recommends pip python3-pandas python3-sklearn wget unzip && \
-        apt-get autoremove -y && \
-        apt-get clean -y && \
-        pip install xgboost==0.90
-RUN     mkdir /root/ImmunIC && \
-        cd /root/ImmunIC && \
-        wget https://github.com/hayounlee-lab/ImmunIC/archive/refs/heads/main.zip && \
-        unzip -j main.zip
+# Install system dependencies and build tools
+RUN apt-get -yqq update && \
+    apt-get install -yq --no-install-recommends \
+        python3-pip \
+        python3-pandas \
+        python3-sklearn \
+        wget \
+        unzip \
+        build-essential \
+        python3-dev \
+        git \
+        cmake && \
+    apt-get autoremove -y && \
+    apt-get clean -y
 
-ENTRYPOINT ["/bin/bash", "/root/ImmunIC/runImmunIC.bash"]
+# Clone and build XGBoost v0.90 from source
+RUN git clone --branch v0.90 https://github.com/dmlc/xgboost.git && \
+    cd xgboost && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    cd ../python-package && \
+    python3 setup.py install
+
+# Copy your ImmunIC code into the image
+COPY ImmunIC /app/ImmunIC
+
+# Make the bash script executable and set entrypoint
+RUN chmod +x /app/ImmunIC/runImmunIC.bash
+ENTRYPOINT ["/bin/bash", "/app/ImmunIC/runImmunIC.bash"]
