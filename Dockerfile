@@ -1,6 +1,14 @@
 FROM --platform=linux/amd64 ubuntu:20.04 AS base
 
+# Prevent interactive prompts (e.g. tzdata)
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
 WORKDIR /app
+
+# Lock timezone before apt installs
+RUN ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata
 
 # Install system dependencies and build tools
 RUN apt-get -yqq update && \
@@ -27,7 +35,7 @@ RUN git clone --branch v0.90 https://github.com/dmlc/xgboost.git && \
     cd ../python-package && \
     python3 setup.py install
 
-# Copy your ImmunIC code into the image
+# Copy source code
 COPY ImmunIC /app/ImmunIC
 
 # Make the bash script executable and set entrypoint
